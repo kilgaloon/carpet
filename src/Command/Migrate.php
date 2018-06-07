@@ -2,9 +2,6 @@
 
 namespace Carpet\Command;
 
-use Illuminate\Support\Facades\DB;
-use Carpet\Map;
-use Carpet\Database\Table;
 use Carpet\Database\Connection;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Input\InputArgument;
@@ -41,11 +38,17 @@ class Migrate extends AbstractCommand
         $db = new Connection($this->getConfig('database'));
         
         foreach($this->getConfig('map') as $table => $class) {
-            $data = Connection::table($table)->take(5)->get();
-            foreach($data as $d) {
-                $model = new $class;
-                $model->clone($d);
-            }  
+            $data = Connection::table($table)->chunk(100, function($data) {
+                foreach($data as $d) {
+                    $model = new $class;
+    
+                    if ( !($model instanceof \Carpet\Database\Model)) {
+                        throw \Exception("Model need to be instance of Carpet\\Database\\Model");
+                    }
+                    
+                    $model->clone($d);
+                }  
+            }); 
         }
     }
 }
